@@ -21,7 +21,8 @@ The app uses Google Translate through `deep-translator`, stores settings locally
 
 ## Screenshots
 
-![HotKey Translator Settings](assets/screenshots/settings-window.png)
+<img width="452" height="495" alt="image" src="https://github.com/user-attachments/assets/4b1796dd-e78a-420a-8239-dd68e5293999" />
+
 
 ## Requirements
 
