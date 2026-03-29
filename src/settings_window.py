@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 
-from src.config import LANGUAGES, save_config, set_autostart
+from src.config import LANGUAGES, MODES, save_config, set_autostart
 
 
 class HotkeyRecorder(QLineEdit):
@@ -98,7 +98,7 @@ class SettingsWindow(QWidget):
 
     def _init_ui(self):
         self.setWindowTitle("HotKey Translator — Settings")
-        self.setMinimumWidth(420)
+        self.setMinimumWidth(450)
         self.setWindowFlags(self.windowFlags())
 
         layout = QVBoxLayout(self)
@@ -109,10 +109,29 @@ class SettingsWindow(QWidget):
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
-        hotkey_group = QGroupBox("Hotkey")
-        hotkey_layout = QVBoxLayout(hotkey_group)
+        mode_group = QGroupBox("Translation Mode")
+        mode_layout = QVBoxLayout(mode_group)
 
-        hotkey_hint = QLabel("Current hotkey to trigger translation:")
+        mode_row = QHBoxLayout()
+        mode_row.addWidget(QLabel("Mode:"))
+        self.mode_combo = QComboBox()
+        for mode_id, mode_label in MODES.items():
+            self.mode_combo.addItem(mode_label, mode_id)
+        self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        mode_row.addWidget(self.mode_combo)
+        mode_layout.addLayout(mode_row)
+
+        self.mode_desc = QLabel("")
+        self.mode_desc.setWordWrap(True)
+        self.mode_desc.setStyleSheet("color: #666; font-size: 11px; padding: 4px 0;")
+        mode_layout.addWidget(self.mode_desc)
+
+        layout.addWidget(mode_group)
+
+        self.hotkey_group = QGroupBox("Hotkey")
+        hotkey_layout = QVBoxLayout(self.hotkey_group)
+
+        hotkey_hint = QLabel("Hotkey to trigger translation:")
         hotkey_layout.addWidget(hotkey_hint)
 
         hotkey_row = QHBoxLayout()
@@ -124,7 +143,7 @@ class SettingsWindow(QWidget):
         hotkey_row.addWidget(self.btn_reset_hotkey)
         hotkey_layout.addLayout(hotkey_row)
 
-        layout.addWidget(hotkey_group)
+        layout.addWidget(self.hotkey_group)
 
         lang_group = QGroupBox("Languages")
         lang_layout = QVBoxLayout(lang_group)
@@ -172,7 +191,28 @@ class SettingsWindow(QWidget):
                 continue
             combo.addItem(f"{name} ({code})", code)
 
+    def _on_mode_changed(self):
+        mode = self.mode_combo.currentData()
+        if mode == "double_ctrl_c":
+            self.mode_desc.setText(
+                "Select text manually, then press Ctrl+C twice quickly.\n"
+                "The clipboard text will be translated and pasted back."
+            )
+            self.hotkey_group.setVisible(False)
+        else:
+            self.mode_desc.setText(
+                "Press the hotkey → text in active field is selected (Ctrl+A), "
+                "translated and replaced."
+            )
+            self.hotkey_group.setVisible(True)
+
     def _load_config(self):
+        mode = self._config.get("mode", "hotkey")
+        idx = self.mode_combo.findData(mode)
+        if idx >= 0:
+            self.mode_combo.setCurrentIndex(idx)
+        self._on_mode_changed()
+
         self.hotkey_recorder.set_hotkey(self._config.get("hotkey", "ctrl+shift+t"))
 
         src = self._config.get("source_lang", "auto")
@@ -191,12 +231,18 @@ class SettingsWindow(QWidget):
         self.hotkey_recorder.set_hotkey("ctrl+shift+t")
 
     def _save(self):
-        hotkey = self.hotkey_recorder.text().strip()
-        if not hotkey or "Press key" in hotkey:
-            QMessageBox.warning(self, "Error", "Please set a hotkey.")
-            return
+        mode = self.mode_combo.currentData()
+
+        if mode == "hotkey":
+            hotkey = self.hotkey_recorder.text().strip()
+            if not hotkey or "Press key" in hotkey:
+                QMessageBox.warning(self, "Error", "Please set a hotkey.")
+                return
+        else:
+            hotkey = self._config.get("hotkey", "ctrl+shift+t")
 
         new_config = {
+            "mode": mode,
             "hotkey": hotkey,
             "source_lang": self.source_lang_combo.currentData(),
             "target_lang": self.target_lang_combo.currentData(),

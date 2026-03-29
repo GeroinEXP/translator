@@ -17,7 +17,13 @@ def _get_config_path() -> str:
     return os.path.join(_get_config_dir(), "config.json")
 
 
+MODES = {
+    "hotkey": "Hotkey (Ctrl+A → Translate)",
+    "double_ctrl_c": "Double Ctrl+C (Select → Ctrl+C twice)",
+}
+
 DEFAULT_CONFIG = {
+    "mode": "hotkey",
     "hotkey": "ctrl+shift+t",
     "source_lang": "auto",
     "target_lang": "en",
@@ -133,6 +139,16 @@ LANGUAGES = {
 }
 
 
+def _validate_hotkey(hotkey_str: str) -> bool:
+    try:
+        import keyboard
+
+        keyboard.parse_hotkey(hotkey_str)
+        return True
+    except Exception:
+        return False
+
+
 def load_config() -> dict:
     config = dict(DEFAULT_CONFIG)
     path = _get_config_path()
@@ -143,6 +159,13 @@ def load_config() -> dict:
             config.update(saved)
         except (json.JSONDecodeError, OSError):
             pass
+
+    if config.get("mode") not in MODES:
+        config["mode"] = DEFAULT_CONFIG["mode"]
+
+    if not _validate_hotkey(config.get("hotkey", "")):
+        config["hotkey"] = DEFAULT_CONFIG["hotkey"]
+
     return config
 
 
@@ -155,7 +178,6 @@ def save_config(config: dict) -> None:
 def set_autostart(enabled: bool) -> None:
     if sys.platform != "win32":
         return
-    import ctypes
 
     startup_folder = os.path.join(
         os.environ.get("APPDATA", ""),
